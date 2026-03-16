@@ -82,6 +82,28 @@
 </div>
 
 <script>
+//     **Example Request:**
+
+// ```json
+// {
+//   "appId": "my-app",
+//   "userId": "user-123",
+//   "action": "page_view",
+//   "platform": "web",
+//   "metadata": { "page": "/dashboard" }
+// }
+// ```
+    fetch('https://backbone.nayamyanmar.com/api/activity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            appId: 'burmese-imposter',
+            userId: `guest-${Math.floor(Math.random() * 10000)}`,
+            action: 'page_view',
+            platform: 'web',
+            metadata: { page: '/index.html' }
+        })
+    }).catch(err => console.error('Tracking error:', err));
 const wordBank = {
             food: [
                 "မုန့်ဟင်းခါး", "လက်ဖက်သုပ်", "ကြက်သားဟင်း", "ဒူးရင်းသီး", "ပလာတာ",

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Burmese Imposter Pro</title>
+    <style>
+        :root {
+            --primary: #00f2fe; --secondary: #4facfe; --accent: #f093fb;
+            --danger: #ff416c; --bg: #0f172a; --card-bg: #1e293b;
+        }
+        body { font-family: sans-serif; background-color: var(--bg); color: white; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        .container { width: 100%; max-width: 480px; text-align: center; }
+        .box { background: var(--card-bg); padding: 25px; border-radius: 15px; border: 1px solid #334155; margin-bottom: 20px; }
+        input, select { background: #0f172a; border: 1px solid var(--secondary); color: white; padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 15px; box-sizing: border-box; }
+        input:focus { background: #1e293b; }
+        button { background: linear-gradient(45deg, var(--secondary), var(--primary)); color: #0f172a; border: none; padding: 15px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 10px; }
+        .player-tag { background: #334155; padding: 10px; margin-bottom: 8px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .card { background: var(--card-bg); border: 2px dashed var(--secondary); border-radius: 20px; padding: 40px 20px; margin: 20px 0; cursor: pointer; min-height: 100px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; transition: 0.3s; }
+        .hidden { display: none; }
+        .timer { font-size: 2rem; color: var(--accent); margin: 10px 0; font-weight: bold; }
+        .vote-btn { background: #334155; margin-top: 5px; color: white; border: 1px solid var(--accent); }
+        .vote-btn:hover { background: var(--accent); color: #0f172a; }
+        .remove-btn { color: var(--danger); cursor: pointer; padding: 0 10px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 id="game-title" style="color: var(--primary);">လူလိမ် ရှာတမ်း</h1>
+
+    <div id="setup-screen" class="box">
+        <label>ကစားသမား အမည် (Player Name)</label>
+        <input type="text" id="nameInput" value="Player 1" onclick="this.select()">
+        <button onclick="addPlayer()">Add Player</button>
+        
+        <div id="playerList" style="margin: 15px 0;"></div>
+
+        <div style="text-align: left; margin: 15px 0;">
+            <input type="checkbox" id="hintToggle" style="width: auto;"> Hint (Category) ပြမည်
+            <br>
+            <input type="checkbox" id="timerToggle" style="width: auto;" onchange="document.getElementById('timerSet').classList.toggle('hidden')"> Timer ထည့်မည်
+            <div id="timerSet" class="hidden">
+                <input type="number" id="timeLimit" value="3" placeholder="Minutes" style="margin-top: 10px;"> (မိနစ်)
+            </div>
+        </div>
+        <button onclick="startGame()" style="background: var(--accent); color: white;">ဂိမ်းစတင်မယ် 🚀</button>
+    </div>
+
+    <div id="reveal-screen" class="box hidden">
+        <h3 id="turn-display"></h3>
+        <p id="category-hint" class="hidden" style="color: var(--accent); font-weight: bold;"></p>
+        <div class="card" id="mainCard" onclick="revealWord()">
+            <span id="word-text">ကြည့်ရန် နှိပ်ပါ</span>
+        </div>
+        <button id="nextBtn" class="hidden" onclick="nextPlayer()">နောက်တစ်ယောက်</button>
+    </div>
+
+    <div id="discuss-screen" class="box hidden">
+        <h2>စကားပြောချိန်</h2>
+        <div id="timerDisplay" class="timer"></div>
+        <p>လူလိမ်ကို ရှာဖွေပြီး မဲပေးကြပါ</p>
+        <button onclick="startVoting()" style="background: var(--danger); color: white;">Voting စတင်မယ်</button>
+    </div>
+
+    <div id="vote-screen" class="box hidden">
+        <h3>ဘယ်သူ လူလိမ်ဖြစ်မလဲ?</h3>
+        <div id="voteList"></div>
+    </div>
+
+    <div id="result-screen" class="box hidden">
+        <h2 id="result-status"></h2>
+        <p id="imposter-reveal"></p>
+        <button onclick="location.reload()">ဂိမ်းအသစ် ပြန်ဆော့မယ်</button>
+    </div>
+</div>
+
+<script>
+const wordBank = {
+        food: [
+            "မုန့်ဟင်းခါး", "လက်ဖက်သုပ်", "ကြက်သားဟင်း", "ဒူးရင်းသီး", "ပလာတာ", 
+            "နို့ထမင်း", "အုန်းနို့ခေါက်ဆွဲ", "ရှမ်းခေါက်ဆွဲ", "ထမင်းသုပ်", "ဝက်သားတုတ်ထိုး",
+            "ကော်ပြန့်ကျော်", "မုန့်လင်မယား", "ရွှေရင်အေး", "ငါးထမင်းနယ်", "ကရင်တာလပေါဟင်း"
+        ],
+        places: [
+            "ရွှေတိဂုံဘုရား", "ပုဂံ", "အင်းလေးကန်", "ပြင်ဦးလွင်", "ငပလီ", 
+            "မန္တလေးနန်းကျုံး", "ကျိုက်ထီးရိုး", "ချောင်းသာ", "ပုပ္ပားတောင်",
+           "အင်းလျားကန်", "မဟာမြတ်မုနိ", "ကန်တော်ကြီး", "ဖားအံ"
+        ],
+        animals: [
+            "ဆင်", "ကျား", "ခြင်္သေ့", "ဒေါင်း", "ယုန်", "ကြောင်", "မျောက်",
+            "ခွေး", "နွား", "မြင်း", "ဝက်", "ကြက်", "ဘဲ", "ငါး", "လိပ်ပြာ",
+            "ပုစဉ်း", "ပင့်ကူ", "မြွေ", "မိကျောင်း", "သစ်ကုလားအုတ်"
+        ],
+        jobs: [
+            "ဆရာဝန်", "အင်ဂျင်နီယာ", "စစ်သား", "ရဲ", "ကျောင်းဆရာ",
+            "ဈေးသည်", "လယ်သမား", "မင်းသား", "အဆိုတော်", "ပန်းချီဆရာ",
+            "ဓာတ်ပုံဆရာ", "စာရေးဆရာ", "ရှေ့နေ", "စားဖိုမှူး", "ယာဉ်မောင်း"
+        ],
+        items: [
+            "လက်ကိုင်ဖုန်း", "လက်ပ်တော့", "တီဗွီ", "ရေခဲသေတ္တာ", "စက်ဘီး",
+            "မော်တော်ကား", "ထီး", "ဖိနပ်", "မျက်မှန်", "နာရီ",
+            "ပုဆိုး", "ထဘီ", "ကျောပိုးအိတ်", "ရေဘူး", "ပန်ကာ"
+        ]
+    };
+
+    let players = [];
+    let imposterIndex = -1;
+    let currentIndex = 0;
+    let secretWord = "";
+    let gameCategory = "";
+    let timerInterval;
+
+    function addPlayer() {
+        const input = document.getElementById('nameInput');
+        players.push(input.value);
+        input.value = "Player " + (players.length + 1);
+        input.select();
+        renderPlayers();
+    }
+
+    function renderPlayers() {
+        const list = document.getElementById('playerList');
+        list.innerHTML = players.map((p, i) => `
+            <div class="player-tag">
+                <span>${i+1}. ${p}</span>
+                <span class="remove-btn" onclick="players.splice(${i},1); renderPlayers();">✕</span>
+            </div>
+        `).join('');
+    }
+
+    function startGame() {
+        if (players.length < 3) return alert("အနည်းဆုံး ၃ ယောက် လိုအပ်ပါတယ်");
+        
+        const categories = Object.keys(wordBank);
+        gameCategory = categories[Math.floor(Math.random() * categories.length)];
+        secretWord = wordBank[gameCategory][Math.floor(Math.random() * wordBank[gameCategory].length)];
+        imposterIndex = Math.floor(Math.random() * players.length);
+        
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('reveal-screen').classList.remove('hidden');
+        showTurn();
+    }
+
+    function showTurn() {
+        document.getElementById('turn-display').innerText = `${players[currentIndex]} ရဲ့ အလှည့်`;
+        document.getElementById('word-text').innerText = "ကြည့်ရန် နှိပ်ပါ";
+        document.getElementById('nextBtn').classList.add('hidden');
+        
+        if(document.getElementById('hintToggle').checked) {
+            const hintDisplay = document.getElementById('category-hint');
+            hintDisplay.innerText = `Hint: ${gameCategory}`;
+            hintDisplay.classList.remove('hidden');
+        }
+    }
+
+    function revealWord() {
+        const text = document.getElementById('word-text');
+        if (currentIndex === imposterIndex) {
+            text.innerText = "သင်က လူလိမ်ပါ! 😈";
+            text.style.color = "var(--danger)";
+        } else {
+            text.innerText = secretWord;
+            text.style.color = "var(--primary)";
+        }
+        document.getElementById('nextBtn').classList.remove('hidden');
+    }
+
+    function nextPlayer() {
+        if (currentIndex < players.length - 1) {
+            currentIndex++;
+            showTurn();
+        } else {
+            startDiscussion();
+        }
+    }
+
+    function startDiscussion() {
+        document.getElementById('reveal-screen').classList.add('hidden');
+        document.getElementById('discuss-screen').classList.remove('hidden');
+        
+        if (document.getElementById('timerToggle').checked) {
+            let time = parseInt(document.getElementById('timeLimit').value) * 60;
+            const display = document.getElementById('timerDisplay');
+            timerInterval = setInterval(() => {
+                let mins = Math.floor(time / 60);
+                let secs = time % 60;
+                display.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+                if (--time < 0) {
+                    clearInterval(timerInterval);
+                    alert("အချိန်စေ့ပါပြီ! မဲပေးကြပါ");
+                }
+            }, 1000);
+        }
+    }
+
+    function startVoting() {
+        clearInterval(timerInterval);
+        document.getElementById('discuss-screen').classList.add('hidden');
+        document.getElementById('vote-screen').classList.remove('hidden');
+        
+        const voteList = document.getElementById('voteList');
+        voteList.innerHTML = players.map((p, i) => `
+            <button class="vote-btn" onclick="checkVote(${i})">${p}</button>
+        `).join('');
+    }
+
+    function checkVote(index) {
+        document.getElementById('vote-screen').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        
+        const resultStatus = document.getElementById('result-status');
+        const revealP = document.getElementById('imposter-reveal');
+        
+        if (index === imposterIndex) {
+            resultStatus.innerText = "Imposter ရှုံးသွားပြီ! 🏳️";
+            resultStatus.style.color = "var(--primary)";
+        } else {
+            resultStatus.innerText = "Imposter နိုင်သွားပြီ! 🏆";
+            resultStatus.style.color = "var(--danger)";
+        }
+        
+        revealP.innerHTML = `လူလိမ်မှာ <b>${players[imposterIndex]}</b> ဖြစ်ပြီး <br> စကားဝှက်မှာ <b>${secretWord}</b> ဖြစ်ပါတယ်။`;
+    }
+</script>
+
+</body>
+</html>
